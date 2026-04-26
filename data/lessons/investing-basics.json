@@ -1,0 +1,59 @@
+[
+  {
+    "id": "investing-basics",
+    "title": "Investing Basics for Beginners",
+    "description": "Understand what investing is, why risk matters, and how long-term habits work.",
+    "category": "Investing Basics",
+    "difficulty": "beginner",
+    "estimatedMinutes": 6,
+    "bodyMarkdown": "## Objective\nLearn the difference between saving, investing, and speculating.\n\nInvesting means putting money into assets with the hope that value can grow over time. There is always uncertainty. Prices can go down, returns are not guaranteed, and your timeline matters.\n\n## Simple example\nA beginner may choose to learn first, build an emergency fund, and study diversified products before taking any risk.\n\n## Key idea\nGood investing starts with understanding risk, not chasing quick wins.",
+    "keyTakeaways": [
+      "Investing involves risk and possible losses.",
+      "Long-term planning is different from short-term trading.",
+      "Emergency funds and goals should come before risky decisions."
+    ],
+    "riskNotes": [
+      "Returns are never guaranteed.",
+      "Short-term price movement can be stressful and unpredictable."
+    ],
+    "quizId": "investing-basics-quiz"
+  },
+  {
+    "id": "etf-basics",
+    "title": "What Is an ETF?",
+    "description": "Learn why ETFs are often described as baskets of investments.",
+    "category": "ETF Basics",
+    "difficulty": "beginner",
+    "estimatedMinutes": 5,
+    "bodyMarkdown": "## Objective\nUnderstand the basic idea of an exchange-traded fund.\n\nAn ETF is a fund that can hold many investments. Some ETFs follow indexes, sectors, bonds, or other themes. Because one ETF can hold many assets, it may reduce concentration risk compared with owning one asset only.\n\n## Simple example\nInstead of studying one company only, a learner may study how broad-market funds work and what fees, risks, and tracking differences mean.\n\n## Reminder\nDiversification can reduce some risks, but it does not remove all risks.",
+    "keyTakeaways": [
+      "An ETF can hold many assets in one product.",
+      "Fees, tracking, liquidity, and currency risk still matter.",
+      "Diversification does not guarantee profit."
+    ],
+    "riskNotes": [
+      "ETF prices can fall.",
+      "Some ETFs are narrow, complex, leveraged, or unsuitable for beginners."
+    ],
+    "quizId": "etf-basics-quiz"
+  },
+  {
+    "id": "crypto-risk-basics",
+    "title": "Crypto Risk Basics",
+    "description": "A safety-first introduction to volatility, scams, custody, and regulation.",
+    "category": "Crypto Basics",
+    "difficulty": "beginner",
+    "estimatedMinutes": 7,
+    "bodyMarkdown": "## Objective\nLearn why crypto requires extra caution.\n\nCrypto assets can move sharply in price. Some projects fail, wallets can be compromised, and scams can look professional. Rules may also change depending on regulators and platforms.\n\n## Simple example\nBefore touching any crypto product, a learner should understand volatility, self-custody, phishing, exchange risk, and why hype is not research.\n\n## Safety note\nNever share seed phrases, passwords, or one-time passwords.",
+    "keyTakeaways": [
+      "Crypto is highly volatile.",
+      "Self-custody creates personal security responsibilities.",
+      "Scams often use urgency, guaranteed returns, or celebrity-style hype."
+    ],
+    "riskNotes": [
+      "You can lose a large amount or all of your money.",
+      "Regulatory uncertainty can affect access, taxes, and platform rules."
+    ],
+    "quizId": "crypto-risk-quiz"
+  }
+]

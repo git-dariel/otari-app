@@ -1,50 +1,95 @@
-# Welcome to your Expo app 👋
+# Otari Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Otari is an educational mobile app built with React Native and Expo for beginner-friendly investing learning.  
+The app focuses on market stocks, ETFs, crypto basics, and risk-aware learning content.
 
-## Get started
+## Tech Stack
 
-1. Install dependencies
+- React Native
+- Expo
+- Expo Router
+- TypeScript
+- NativeWind
+- AsyncStorage
 
-   ```bash
-   pnpm install
-   ```
+## Prerequisites
 
-2. Start the app
+- Node.js 20+
+- pnpm 10+
+- Android Studio (for Android emulator) or a physical device
+- Xcode (for iOS development on macOS only)
 
-   ```bash
-   npx expo start
-   ```
+## Local Development
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1. Install dependencies:
 
 ```bash
-pnpm run reset-project
+pnpm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Start the Metro bundler:
 
-## Learn more
+```bash
+pnpm run start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Run on a target platform:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+pnpm run android
+pnpm run ios
+pnpm run web
+```
 
-## Join the community
+## Quality Checks
 
-Join our community of developers creating universal apps.
+Run these before creating a build:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+pnpm run lint
+pnpm run typecheck
+```
+
+## Project Structure
+
+Key directories:
+
+- `app/` - Expo Router screens and routes
+- `components/` - shared UI components
+- `services/` - business logic and data services
+- `types/` - shared TypeScript models
+- `assets/` - images, icons, and static assets
+
+## Build and Release (EAS)
+
+This project uses EAS Build for Android artifacts.
+
+1. Log in to Expo:
+
+```bash
+pnpm exec eas login
+```
+
+2. Build an internal Android APK:
+
+```bash
+pnpm exec eas build --platform android --profile preview
+```
+
+3. Build a production Android AAB:
+
+```bash
+pnpm exec eas build --platform android --profile production
+```
+
+EAS build profiles are configured in `eas.json`.
+
+## Product Guardrails
+
+- Educational only; no buy/sell/hold recommendations
+- No trading signals or price prediction features
+- Content must include risk context and beginner-friendly explanations
+
+## License
+
+This project is currently private and intended for internal development.

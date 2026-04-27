@@ -1,14 +1,22 @@
 import { Image } from 'expo-image';
 import { SendHorizontal } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/common/AppButton';
 import { AppCard } from '@/components/common/AppCard';
 import { Screen } from '@/components/common/Screen';
 import { ScreenHeader } from '@/components/common/ScreenHeader';
-import { searchKnowledge } from '@/services/content/contentService';
-import { getSafetyRefusal, isUnsafeFinancialRequest } from '@/services/ai/safetyGuard';
+import { generateAIAnswer } from '@/services/ai/aiService';
+import {
+  clearLocalModel,
+  getLocalModelState,
+  refreshLocalModelState,
+  startLocalModelDownload,
+  subscribeToLocalModelState,
+} from '@/services/ai/localModelManager';
+import type { AIResponse, LocalModelState } from '@/types/ai';
 
 const suggestedPrompts = [
   'What is an ETF?',
@@ -19,28 +27,13 @@ const suggestedPrompts = [
 export default function ChatbotScreen() {
   const [question, setQuestion] = useState('');
   const [submittedQuestion, setSubmittedQuestion] = useState('');
+  const [answerState, setAnswerState] = useState<AIResponse | null>(null);
+  const [isAnswerLoading, setIsAnswerLoading] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [modelState, setModelState] = useState<LocalModelState>(getLocalModelState());
   const insets = useSafeAreaInsets();
 
-  const answer = useMemo(() => {
-    if (!submittedQuestion) {
-      return '';
-    }
-
-    if (isUnsafeFinancialRequest(submittedQuestion)) {
-      return getSafetyRefusal();
-    }
-
-    const related = searchKnowledge(submittedQuestion).slice(0, 2);
-
-    if (!related.length) {
-      return "I don't know from the current app content yet. Try asking about ETFs, risk tolerance, KYC, crypto risk, or scams.";
-    }
-
-    return `Based on app content, start with: ${related.map((item) => item.title).join(', ')}. This is educational only, so use it to learn the concept and risks before checking official sources.`;
-  }, [submittedQuestion]);
-
-  function submitQuestion(value = question) {
+  async function submitQuestion(value = question) {
     const trimmed = value.trim();
 
     if (!trimmed) {
@@ -49,6 +42,19 @@ export default function ChatbotScreen() {
 
     setSubmittedQuestion(trimmed);
     setQuestion('');
+    setIsAnswerLoading(true);
+    try {
+      const answer = await generateAIAnswer(trimmed);
+      setAnswerState(answer);
+    } catch {
+      setAnswerState({
+        answer:
+          'I had trouble starting the local assistant. Please try again. If this keeps happening, the app may need a development build with the local AI runtime included.',
+        mode: 'fallback',
+      });
+    } finally {
+      setIsAnswerLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -65,9 +71,58 @@ export default function ChatbotScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    refreshLocalModelState().then(setModelState);
+
+    const unsubscribe = subscribeToLocalModelState((state) => {
+      setModelState(state);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   const composerBottomOffset = isKeyboardVisible
     ? Math.max(insets.bottom, 8) + 8
     : Math.max(insets.bottom, 12) + 92;
+
+  const modelStatusLabel =
+    modelState.status === 'not_downloaded'
+      ? 'Not downloaded'
+      : modelState.status === 'downloading'
+        ? modelState.progress > 0.02
+          ? `Downloading ${Math.round(modelState.progress * 100)}%`
+          : 'Downloading...'
+        : modelState.status === 'ready'
+          ? 'Ready offline'
+          : 'Unavailable (fallback active)';
+
+  const shouldShowDownloadButton =
+    modelState.status === 'not_downloaded' || modelState.status === 'unavailable';
+  const shouldShowResetButton =
+    modelState.status === 'ready' ||
+    modelState.status === 'unavailable' ||
+    modelState.status === 'downloading';
+
+  const modelStatusColor =
+    modelState.status === 'ready'
+      ? '#047857'
+      : modelState.status === 'downloading'
+        ? '#1d4ed8'
+        : '#b45309';
+
+  async function handleDownloadModel() {
+    try {
+      await startLocalModelDownload();
+    } catch {
+      // State is already handled by model manager.
+    }
+  }
+
+  async function handleClearModel() {
+    await clearLocalModel();
+  }
 
   return (
     <Screen scroll={false}>
@@ -101,6 +156,52 @@ export default function ChatbotScreen() {
             </View>
           </View>
 
+          <AppCard className="mb-5">
+            <Text className="text-xs font-black uppercase tracking-widest text-forest-700">
+              Local AI Model
+            </Text>
+            <Text className="mt-2 text-sm font-bold" style={{ color: modelStatusColor }}>
+              {modelStatusLabel}
+            </Text>
+            {modelState.status === 'downloading' ? (
+              <View className="mt-2 flex-row items-center">
+                <ActivityIndicator color="#1d4ed8" />
+                <Text className="ml-2 text-xs font-semibold text-slate-500">
+                  Download in progress. Keep the app open.
+                </Text>
+              </View>
+            ) : null}
+            <Text className="mt-2 text-sm leading-5 text-slate-600">
+              This assistant is educational only and runs offline when the model is ready.
+            </Text>
+            {shouldShowDownloadButton ? (
+              <View className="mt-4">
+                <AppButton
+                  icon="download"
+                  label="Download local model"
+                  onPress={handleDownloadModel}
+                  size="sm"
+                />
+              </View>
+            ) : null}
+            {shouldShowResetButton ? (
+              <View className="mt-3">
+                <AppButton
+                  icon="delete-outline"
+                  label="Clear local model"
+                  onPress={handleClearModel}
+                  size="sm"
+                  variant="ghost"
+                />
+              </View>
+            ) : null}
+            {modelState.errorMessage ? (
+              <Text className="mt-3 text-xs font-semibold text-amber-700">
+                {modelState.errorMessage}
+              </Text>
+            ) : null}
+          </AppCard>
+
           <View className="mb-5 flex-row gap-2.5" style={{ flexWrap: 'wrap' }}>
             {suggestedPrompts.map((prompt) => (
               <Pressable
@@ -132,7 +233,23 @@ export default function ChatbotScreen() {
                     Otari tutor
                   </Text>
                 </View>
-                <Text className="mt-2 text-base leading-7 text-slate-700">{answer}</Text>
+                {isAnswerLoading ? (
+                  <Text className="mt-2 text-base leading-7 text-slate-700">
+                    Thinking with local assistant...
+                  </Text>
+                ) : (
+                  <Text className="mt-2 text-base leading-7 text-slate-700">
+                    {answerState?.answer}
+                  </Text>
+                )}
+                {answerState?.sources?.length ? (
+                  <Text className="mt-3 text-xs font-semibold text-slate-500">
+                    Sources: {answerState.sources.join(', ')}
+                  </Text>
+                ) : null}
+                <Text className="mt-3 text-xs font-semibold text-slate-500">
+                  Mode: {answerState?.mode ?? 'fallback'}
+                </Text>
               </AppCard>
             </View>
           ) : null}

@@ -1,6 +1,13 @@
 const unsafePatterns = [
   /what .* should i buy/i,
+  /what .* should i sell/i,
+  /what .* should i trade/i,
+  /how (can|do) i buy/i,
+  /how (can|do) i sell/i,
+  /how (can|do) i trade/i,
+  /which (stock|etf|coin|crypto) should i buy/i,
   /should i (buy|sell|hold)/i,
+  /(buy|sell|trade).*(stock|etf|coin|crypto)/i,
   /price .* tomorrow/i,
   /trading signal/i,
   /crypto signal/i,

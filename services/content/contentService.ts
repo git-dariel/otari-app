@@ -1,10 +1,8 @@
-import documentsJson from '@/data/docs/documents.json';
 import lessonsJson from '@/data/lessons/investing-basics.json';
 import type { KnowledgeDocument, Lesson } from '@/types/content';
 import { filterByQuery } from '@/utils/search';
 
 const lessons = lessonsJson as Lesson[];
-const documents = documentsJson as KnowledgeDocument[];
 
 export function getLessons(): Lesson[] {
   return lessons;
@@ -31,15 +29,15 @@ export function searchLessons(query: string, category = 'All'): Lesson[] {
 }
 
 export function getDocuments(): KnowledgeDocument[] {
-  return documents;
+  return [];
 }
 
-export function getDocumentById(id: string): KnowledgeDocument | undefined {
-  return documents.find((document) => document.id === id);
+export function getDocumentById(_id: string): KnowledgeDocument | undefined {
+  return undefined;
 }
 
-export function searchDocuments(query: string): KnowledgeDocument[] {
-  return filterByQuery(documents, query);
+export function searchDocuments(_query: string): KnowledgeDocument[] {
+  return [];
 }
 
 export function searchKnowledge(query: string): Array<Lesson | KnowledgeDocument> {

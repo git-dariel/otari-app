@@ -5,11 +5,12 @@ type SearchBoxProps = {
   value: string;
   placeholder: string;
   onChangeText: (value: string) => void;
+  className?: string;
 };
 
-export function SearchBox({ value, placeholder, onChangeText }: SearchBoxProps) {
+export function SearchBox({ value, placeholder, onChangeText, className }: SearchBoxProps) {
   return (
-    <View className="mb-4 min-h-14 flex-row items-center gap-3 rounded-full bg-white px-5">
+    <View className={`mb-4 min-h-14 flex-row items-center gap-3 rounded-full bg-white px-5 ${className ?? ''}`}>
       <MaterialIcons name="search" size={22} color="#64748b" />
       <TextInput
         className="flex-1 text-base font-semibold text-ink"

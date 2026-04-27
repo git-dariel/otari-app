@@ -16,7 +16,7 @@ export default function BookmarksScreen() {
       <AppCard>
         <EmptyState
           title="No bookmarks yet"
-          message="Bookmark persistence is scheduled for Phase 3. For now, use Learn and Docs to browse content."
+          message="Bookmark persistence is scheduled for Phase 3. For now, use Learn and Blogs to browse content."
         />
       </AppCard>
     </Screen>

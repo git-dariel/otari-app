@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const tabMeta = {
   index: { label: 'Home', Icon: Home },
   learn: { label: 'Learn', Icon: BookOpen },
-  documents: { label: 'Docs', Icon: FileText },
+  documents: { label: 'Blogs', Icon: FileText },
 };
 
 const OTARI_HINTS = [

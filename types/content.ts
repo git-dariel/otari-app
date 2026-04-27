@@ -35,6 +35,20 @@ export type KnowledgeDocument = {
   updatedAt: string;
 };
 
+export type MarketBlogCategory = 'stocks' | 'etf' | 'crypto' | 'investing';
+
+export type MarketBlogArticle = {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  authorName: string;
+  sourceName: string;
+  category: MarketBlogCategory;
+  tags: string[];
+  publishedAt: string;
+};
+
 export type ContentItemType = 'lesson' | 'video' | 'document';
 
 export type BookmarkPreview = {

@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { BookOpenCheck, ShieldCheck } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -21,6 +21,11 @@ import { Screen } from "@/components/common/Screen";
 import { APP_NAME } from "@/constants/app";
 import { getTrustedCreators } from "@/services/content/trustedCreatorsService";
 import { INVESTMENT_TYPE_OPTIONS } from "@/services/portfolio/portfolioCatalog";
+import {
+  getFallbackUsdToPhpRate,
+  getPortfolioTotalInPhp,
+  getUsdToPhpExchangeRate,
+} from "@/services/portfolio/portfolioCurrencyService";
 import { searchInvestmentAssets } from "@/services/portfolio/portfolioMarketService";
 import {
   addPortfolioItem,
@@ -36,6 +41,12 @@ import type {
 } from "@/types/portfolio";
 
 const PATHWAY_BARS = [3, 5, 4, 7, 6, 9, 8] as const;
+const PHP_CURRENCY_FORMATTER = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 function getTickerFallbackIcon(symbol: string): string {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -69,6 +80,8 @@ export default function HomeScreen() {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [isPortfolioLoading, setIsPortfolioLoading] = useState(true);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const [usdToPhpRate, setUsdToPhpRate] = useState(getFallbackUsdToPhpRate());
+  const [isExchangeRateFallback, setIsExchangeRateFallback] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [selectedType, setSelectedType] = useState<InvestmentType | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<InvestmentAsset | null>(null);
@@ -129,6 +142,29 @@ export default function HomeScreen() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUsdToPhpRate() {
+      const rateResult = await getUsdToPhpExchangeRate();
+
+      if (isMounted) {
+        setUsdToPhpRate(rateResult.rate);
+        setIsExchangeRateFallback(rateResult.isFallback);
+      }
+    }
+
+    loadUsdToPhpRate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalPortfolioSpendingPhp = useMemo(() => {
+    return getPortfolioTotalInPhp(portfolioItems, usdToPhpRate);
+  }, [portfolioItems, usdToPhpRate]);
 
   function resetModalState() {
     setSelectedType(null);
@@ -313,12 +349,27 @@ export default function HomeScreen() {
       <View className="mb-4 flex-row gap-4">
         <View className="flex-1 rounded-[24px] bg-forest-50 px-4 py-5">
           <Text className="text-[10px] font-black uppercase tracking-widest text-forest-700">
-            Meet your guide
+            Total Spending of my Portfolio
           </Text>
-          <Text className="mt-3 text-[13px] leading-6 text-slate-700">
-            Learn muna before taking risk. I’ll point you to trusted creator pages and safer
-            questions.
-          </Text>
+          {isPortfolioLoading ? (
+            <View className="mt-3 flex-row items-center">
+              <ActivityIndicator color="#1d4ed8" />
+              <Text className="ml-2 text-xs text-slate-500">Computing portfolio total...</Text>
+            </View>
+          ) : (
+            <>
+              <Text className="mt-3 text-2xl font-black text-ink">
+                {PHP_CURRENCY_FORMATTER.format(totalPortfolioSpendingPhp)}
+              </Text>
+              <Text className="mt-2 text-xs text-slate-500">
+                Includes USD holdings converted to PHP automatically.
+              </Text>
+              <Text className="mt-1 text-[11px] text-slate-500">
+                USD 1 = PHP {usdToPhpRate.toFixed(2)}
+                {isExchangeRateFallback ? " (fallback rate)" : ""}
+              </Text>
+            </>
+          )}
         </View>
 
         <View className="flex-1 rounded-[24px] bg-forest-50 px-4 py-5">
@@ -445,7 +496,7 @@ export default function HomeScreen() {
         >
           <View className="flex-1 justify-end bg-transparent">
             <View
-              className="max-h-[85%] rounded-t-[28px] border border-slate-200 bg-mist px-5 pb-8 pt-5 shadow-2xl shadow-black/25"
+              className="max-h-[85%] rounded-t-[28px] border border-blue-700 bg-blue-900 px-5 pb-8 pt-5 shadow-2xl shadow-black/25"
               style={{
                 marginBottom:
                   Platform.OS === "android" && addModalKeyboardHeight > 0
@@ -454,17 +505,17 @@ export default function HomeScreen() {
               }}
             >
               <View className="mb-4 flex-row items-center justify-between">
-                <Text className="text-lg font-black text-ink">
+                <Text className="text-lg font-black text-blue-50">
                   {modalMode === "edit" ? "Edit Portfolio Item" : "Add Portfolio Item"}
                 </Text>
                 <Pressable accessibilityRole="button" onPress={closeAddModal}>
-                  <Text className="text-sm font-bold text-forest-700">Close</Text>
+                  <Text className="text-sm font-bold text-blue-200">Close</Text>
                 </Pressable>
               </View>
 
               {!selectedType ? (
                 <View className="gap-2">
-                  <Text className="mb-1 text-sm font-bold text-slate-700">
+                  <Text className="mb-1 text-sm font-bold text-blue-100">
                     Step 1: Choose investment type
                   </Text>
                   {INVESTMENT_TYPE_OPTIONS.map((typeOption) => (
@@ -483,7 +534,7 @@ export default function HomeScreen() {
 
               {selectedType && !selectedAsset ? (
                 <View className="gap-2">
-                  <Text className="mb-1 text-sm font-bold text-slate-700">
+                  <Text className="mb-1 text-sm font-bold text-blue-100">
                     Step 2: Pick a {selectedType.toUpperCase()} asset
                   </Text>
                   <TextInput
@@ -510,7 +561,7 @@ export default function HomeScreen() {
                   {!isAssetSearchLoading &&
                   !assetSearchError &&
                   assetSearchQuery.trim().length < 2 ? (
-                    <Text className="text-xs text-slate-500">
+                    <Text className="text-xs text-blue-100/80">
                       Type at least 2 characters to search the market.
                     </Text>
                   ) : null}
@@ -519,7 +570,7 @@ export default function HomeScreen() {
                   !assetSearchError &&
                   assetSearchQuery.trim().length >= 2 &&
                   !assetOptions.length ? (
-                    <Text className="text-xs text-slate-500">No matching assets found.</Text>
+                    <Text className="text-xs text-blue-100/80">No matching assets found.</Text>
                   ) : null}
 
                   {assetOptions.length ? (
@@ -557,7 +608,7 @@ export default function HomeScreen() {
 
               {selectedType && selectedAsset ? (
                 <View className="gap-3">
-                  <Text className="mb-1 text-sm font-bold text-slate-700">
+                  <Text className="mb-1 text-sm font-bold text-blue-100">
                     Step 3: Enter how much you bought
                   </Text>
                   <View className="rounded-2xl bg-white p-4">
@@ -620,7 +671,7 @@ export default function HomeScreen() {
                 <View className="mt-4 flex-row justify-start">
                   <Pressable
                     accessibilityRole="button"
-                    className="rounded-full bg-forest-50 px-4 py-2"
+                    className="rounded-full bg-blue-800 px-4 py-2"
                     onPress={() => {
                       if (selectedAsset) {
                         setSelectedAsset(null);
@@ -635,7 +686,7 @@ export default function HomeScreen() {
                       setAssetSearchError(null);
                     }}
                   >
-                    <Text className="text-sm font-bold text-forest-700">Back</Text>
+                    <Text className="text-sm font-bold text-blue-100">Back</Text>
                   </Pressable>
                 </View>
               ) : null}

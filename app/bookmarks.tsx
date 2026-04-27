@@ -11,12 +11,12 @@ export default function BookmarksScreen() {
       <BackButton />
       <Text className="mb-3 text-4xl font-black text-ink">Bookmarks</Text>
       <Text className="mb-5 text-lg leading-7 text-slate-700">
-        Saved lessons, videos, and docs will appear here once bookmark storage is added in Phase 3.
+        Saved learning sources and docs will appear here once bookmark storage is added in Phase 3.
       </Text>
       <AppCard>
         <EmptyState
           title="No bookmarks yet"
-          message="Bookmark persistence is scheduled for Phase 3. For now, use Learn, Videos, and Docs to browse content."
+          message="Bookmark persistence is scheduled for Phase 3. For now, use Learn and Docs to browse content."
         />
       </AppCard>
     </Screen>

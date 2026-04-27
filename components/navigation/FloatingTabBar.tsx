@@ -1,21 +1,125 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Image } from 'expo-image';
-import { BookOpen, FileText, Home, PlaySquare } from 'lucide-react-native';
-import { Pressable, Text, View } from 'react-native';
+import { BookOpen, FileText, Home } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Keyboard, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const tabMeta = {
   index: { label: 'Home', Icon: Home },
   learn: { label: 'Learn', Icon: BookOpen },
-  videos: { label: 'Videos', Icon: PlaySquare },
   documents: { label: 'Docs', Icon: FileText },
 };
+
+const OTARI_HINTS = [
+  'Need help understanding investing basics?',
+  'Ask Otari for beginner-friendly guidance.',
+  'Have a quick question about stocks or ETFs?',
+  'Learn safer investing habits with Otari.',
+];
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const aiRouteName = 'chatbot';
   const regularRoutes = state.routes.filter((route) => route.name !== aiRouteName);
   const aiRoute = state.routes.find((route) => route.name === aiRouteName);
+  const aiRouteIndex = aiRoute
+    ? state.routes.findIndex((route) => route.key === aiRoute.key)
+    : -1;
+  const isAiFocused = aiRouteIndex >= 0 && state.index === aiRouteIndex;
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+  const hintTranslateY = useRef(new Animated.Value(6)).current;
+  const [activeHint, setActiveHint] = useState(OTARI_HINTS[0]);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const hintIndexRef = useRef(0);
+  const hintCycleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hintCycleTimeoutRef.current) {
+      clearTimeout(hintCycleTimeoutRef.current);
+      hintCycleTimeoutRef.current = null;
+    }
+
+    if (isAiFocused) {
+      hintOpacity.stopAnimation();
+      hintTranslateY.stopAnimation();
+      hintOpacity.setValue(0);
+      hintTranslateY.setValue(6);
+      return;
+    }
+
+    const runCycle = () => {
+      Animated.sequence([
+        Animated.delay(2400),
+        Animated.parallel([
+          Animated.timing(hintOpacity, {
+            toValue: 1,
+            duration: 360,
+            useNativeDriver: true,
+          }),
+          Animated.timing(hintTranslateY, {
+            toValue: 0,
+            duration: 360,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.delay(4200),
+        Animated.parallel([
+          Animated.timing(hintOpacity, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(hintTranslateY, {
+            toValue: 6,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(({ finished }) => {
+        if (!finished || isAiFocused) {
+          return;
+        }
+
+        hintIndexRef.current = (hintIndexRef.current + 1) % OTARI_HINTS.length;
+        setActiveHint(OTARI_HINTS[hintIndexRef.current]);
+        hintCycleTimeoutRef.current = setTimeout(runCycle, 0);
+      });
+    };
+
+    hintOpacity.setValue(0);
+    hintTranslateY.setValue(6);
+    runCycle();
+
+    return () => {
+      if (hintCycleTimeoutRef.current) {
+        clearTimeout(hintCycleTimeoutRef.current);
+        hintCycleTimeoutRef.current = null;
+      }
+      hintOpacity.stopAnimation();
+      hintTranslateY.stopAnimation();
+      hintOpacity.setValue(0);
+      hintTranslateY.setValue(6);
+    };
+  }, [hintOpacity, hintTranslateY, isAiFocused]);
+
+  if (isKeyboardVisible) {
+    return null;
+  }
 
   return (
     <View
@@ -74,39 +178,50 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         </View>
 
         {aiRoute ? (
-          <Pressable
-            accessibilityLabel={descriptors[aiRoute.key]?.options.tabBarAccessibilityLabel ?? 'Ask Otari'}
-            accessibilityRole="button"
-            accessibilityState={state.index === state.routes.findIndex((route) => route.key === aiRoute.key) ? { selected: true } : {}}
-            className="h-[76px] w-[76px] items-center justify-center rounded-[28px] bg-white shadow-xl shadow-black/25"
-            onPress={() => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: aiRoute.key,
-                canPreventDefault: true,
-              });
+          <View className="relative h-[76px] w-[76px] items-center justify-center">
+            {!isAiFocused ? (
+              <Animated.View
+                pointerEvents="none"
+                className="absolute bottom-[84px] right-0 min-w-[190px] rounded-full bg-white px-2 py-1.5 shadow-sm shadow-black/10"
+                style={{
+                  opacity: hintOpacity,
+                  transform: [{ translateY: hintTranslateY }],
+                }}>
+                <Text className="text-center text-[11px] font-bold text-forest-700">
+                  {activeHint}
+                </Text>
+              </Animated.View>
+            ) : null}
 
-              const isFocused =
-                state.index === state.routes.findIndex((route) => route.key === aiRoute.key);
+            <Pressable
+              accessibilityLabel={descriptors[aiRoute.key]?.options.tabBarAccessibilityLabel ?? 'Ask Otari'}
+              accessibilityRole="button"
+              accessibilityState={isAiFocused ? { selected: true } : {}}
+              className="h-[76px] w-[76px] items-center justify-center rounded-[28px] bg-white shadow-xl shadow-black/25"
+              onPress={() => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: aiRoute.key,
+                  canPreventDefault: true,
+                });
 
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(aiRoute.name, aiRoute.params);
-              }
-            }}>
-            <View
-              className={`h-[60px] w-[60px] items-center justify-center rounded-[22px] ${
-                state.index === state.routes.findIndex((route) => route.key === aiRoute.key)
-                  ? 'bg-forest-50'
-                  : 'bg-white'
-              }`}>
-              <Image
-                accessibilityLabel="Ask Otari tab"
-                contentFit="contain"
-                source={require('@/assets/character/character2.png')}
-                style={{ width: 52, height: 52 }}
-              />
-            </View>
-          </Pressable>
+                if (!isAiFocused && !event.defaultPrevented) {
+                  navigation.navigate(aiRoute.name, aiRoute.params);
+                }
+              }}>
+              <View
+                className={`h-[60px] w-[60px] items-center justify-center rounded-[22px] ${
+                  isAiFocused ? 'bg-forest-50' : 'bg-white'
+                }`}>
+                <Image
+                  accessibilityLabel="Ask Otari tab"
+                  contentFit="contain"
+                  source={require('@/assets/character/character2.png')}
+                  style={{ width: 52, height: 52 }}
+                />
+              </View>
+            </Pressable>
+          </View>
         ) : null}
       </View>
     </View>

@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { SendHorizontal } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppCard } from '@/components/common/AppCard';
@@ -19,6 +19,7 @@ const suggestedPrompts = [
 export default function ChatbotScreen() {
   const [question, setQuestion] = useState('');
   const [submittedQuestion, setSubmittedQuestion] = useState('');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
   const answer = useMemo(() => {
@@ -49,6 +50,24 @@ export default function ChatbotScreen() {
     setSubmittedQuestion(trimmed);
     setQuestion('');
   }
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const composerBottomOffset = isKeyboardVisible
+    ? Math.max(insets.bottom, 8) + 8
+    : Math.max(insets.bottom, 12) + 92;
 
   return (
     <Screen scroll={false}>
@@ -121,7 +140,7 @@ export default function ChatbotScreen() {
 
         <View
           className="min-h-14 flex-row items-center gap-3 rounded-full border border-forest-100 bg-white px-5"
-          style={{ marginBottom: Math.max(insets.bottom, 12) + 92 }}>
+          style={{ marginBottom: composerBottomOffset }}>
           <TextInput
             className="flex-1 text-base font-semibold text-ink"
             placeholder="Ask an educational question"

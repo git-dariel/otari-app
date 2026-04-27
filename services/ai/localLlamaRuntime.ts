@@ -1,4 +1,4 @@
-import type { AIMessage } from '@/types/ai';
+import type { AIMessage } from "@/types/ai";
 
 type LlamaCompletionResult = {
   text?: string;
@@ -29,17 +29,17 @@ type LlamaModule = {
 };
 
 const stopWords = [
-  '</s>',
-  '<|end|>',
-  '<|eot_id|>',
-  '<|end_of_text|>',
-  '<|im_end|>',
-  '<|EOT|>',
-  '<|END_OF_TURN_TOKEN|>',
-  '<|end_of_turn|>',
-  '<|endoftext|>',
-  'User:',
-  'Assistant:',
+  "</s>",
+  "<|end|>",
+  "<|eot_id|>",
+  "<|end_of_text|>",
+  "<|im_end|>",
+  "<|EOT|>",
+  "<|END_OF_TURN_TOKEN|>",
+  "<|end_of_turn|>",
+  "<|endoftext|>",
+  "User:",
+  "Assistant:",
 ];
 
 let contextPromise: Promise<LlamaContext> | null = null;
@@ -47,10 +47,42 @@ let contextModelUri: string | null = null;
 
 function cleanModelAnswer(answer: string): string {
   return answer
-    .replace(/<\/s>/g, '')
-    .replace(/<\|im_end\|>/g, '')
-    .replace(/^assistant\s*:?/i, '')
+    .replace(/<\/s>/g, "")
+    .replace(/<\|im_end\|>/g, "")
+    .replace(/^assistant\s*:?/i, "")
     .trim();
+}
+
+function estimateWordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function resolveAdaptivePredictTokens(messages: AIMessage[]): number {
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((message) => message.role === "user")?.content;
+
+  const wordCount = estimateWordCount(latestUserMessage ?? "");
+
+  if (wordCount <= 18) {
+    return 180;
+  }
+
+  if (wordCount <= 45) {
+    return 220;
+  }
+
+  return 260;
+}
+
+function loadLlamaModule(): LlamaModule {
+  try {
+    return require("llama.rn") as LlamaModule;
+  } catch {
+    throw new Error(
+      "Could not load llama.rn runtime. Use a development build and restart Metro with a cleared cache.",
+    );
+  }
 }
 
 async function getLlamaContext(modelUri: string): Promise<LlamaContext> {
@@ -59,13 +91,13 @@ async function getLlamaContext(modelUri: string): Promise<LlamaContext> {
   }
 
   contextModelUri = modelUri;
-  contextPromise = import('llama.rn')
-    .then((module) => {
-      const llamaModule = module as LlamaModule;
+  contextPromise = Promise.resolve()
+    .then(() => {
+      const llamaModule = loadLlamaModule();
 
       return llamaModule.initLlama({
         model: modelUri,
-        n_ctx: 1536,
+        n_ctx: 1280,
         n_gpu_layers: 0,
         use_mlock: false,
       });
@@ -84,19 +116,20 @@ export async function generateWithLocalLlama(
   messages: AIMessage[],
 ): Promise<string> {
   const context = await getLlamaContext(modelUri);
+  const adaptivePredictTokens = resolveAdaptivePredictTokens(messages);
   const result = await context.completion({
     messages,
-    n_predict: 220,
+    n_predict: adaptivePredictTokens,
     stop: stopWords,
-    temperature: 0.2,
-    top_k: 40,
-    top_p: 0.9,
-    repeat_penalty: 1.1,
+    temperature: 0.15,
+    top_k: 30,
+    top_p: 0.85,
+    repeat_penalty: 1.12,
   });
-  const answer = cleanModelAnswer(result.text ?? '');
+  const answer = cleanModelAnswer(result.text ?? "");
 
   if (!answer) {
-    throw new Error('Local model returned an empty answer.');
+    throw new Error("Local model returned an empty answer.");
   }
 
   return answer;

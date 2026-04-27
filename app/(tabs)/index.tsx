@@ -4,7 +4,10 @@ import { BookOpenCheck, ShieldCheck } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -16,7 +19,7 @@ import { AppButton } from "@/components/common/AppButton";
 import { AppCard } from "@/components/common/AppCard";
 import { Screen } from "@/components/common/Screen";
 import { APP_NAME } from "@/constants/app";
-import { getDocuments, getLessons } from "@/services/content/contentService";
+import { getTrustedCreators } from "@/services/content/trustedCreatorsService";
 import { INVESTMENT_TYPE_OPTIONS } from "@/services/portfolio/portfolioCatalog";
 import { searchInvestmentAssets } from "@/services/portfolio/portfolioMarketService";
 import {
@@ -36,7 +39,7 @@ const PATHWAY_BARS = [3, 5, 4, 7, 6, 9, 8] as const;
 
 function getTickerFallbackIcon(symbol: string): string {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    symbol
+    symbol,
   )}&background=e2e8f0&color=0f172a&rounded=true&size=96&bold=true&format=png`;
 }
 
@@ -62,8 +65,7 @@ function AssetIcon({ iconUrl, symbol, size, accessibilityLabel }: AssetIconProps
 }
 
 export default function HomeScreen() {
-  const lessonCount = getLessons().length;
-  const docCount = getDocuments().length;
+  const trustedCreatorCount = getTrustedCreators().length;
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [isPortfolioLoading, setIsPortfolioLoading] = useState(true);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
@@ -81,7 +83,23 @@ export default function HomeScreen() {
   const [isAssetSearchLoading, setIsAssetSearchLoading] = useState(false);
   const [assetSearchError, setAssetSearchError] = useState<string | null>(null);
   const [activePortfolioItem, setActivePortfolioItem] = useState<PortfolioItem | null>(null);
+  const [addModalKeyboardHeight, setAddModalKeyboardHeight] = useState(0);
   const searchRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+      setAddModalKeyboardHeight(event.endCoordinates.height);
+    });
+
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setAddModalKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -298,7 +316,8 @@ export default function HomeScreen() {
             Meet your guide
           </Text>
           <Text className="mt-3 text-[13px] leading-6 text-slate-700">
-            Learn muna before taking risk. I’ll point you to lessons, docs, and safer questions.
+            Learn muna before taking risk. I’ll point you to trusted creator pages and safer
+            questions.
           </Text>
         </View>
 
@@ -318,8 +337,10 @@ export default function HomeScreen() {
             ))}
           </View>
           <View className="mt-3 flex-row justify-between">
-            <Text className="text-[10px] font-bold text-slate-500">{lessonCount} Lessons</Text>
-            <Text className="text-[10px] font-bold text-slate-500">{docCount} Docs</Text>
+            <Text className="text-[10px] font-bold text-slate-500">
+              {trustedCreatorCount} Creators
+            </Text>
+            <Text className="text-[10px] font-bold text-slate-500">Trusted content only</Text>
           </View>
         </View>
       </View>
@@ -347,23 +368,21 @@ export default function HomeScreen() {
       </AppCard>
 
       <AppCard className="mb-3">
-        <View className="flex-row items-center justify-between">
-          <View>
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1 pr-2">
             <Text className="text-base font-black text-ink">My Portfolio</Text>
             <Text className="text-xs text-slate-500">Track what you already own or trade.</Text>
           </View>
-          <AppButton
-            icon="add-circle-outline"
-            label="Add item"
-            onPress={openAddModal}
-            size="sm"
-            variant="soft"
-          />
+          <View className="shrink-0">
+            <AppButton
+              icon="add-circle-outline"
+              label="Add item"
+              onPress={openAddModal}
+              size="sm"
+              variant="soft"
+            />
+          </View>
         </View>
-
-        <Text className="mt-4 text-sm leading-5 text-slate-600">
-          Educational tracker only. This does not provide buy, sell, or hold advice.
-        </Text>
 
         {isPortfolioLoading ? (
           <View className="mt-4 flex-row items-center">
@@ -419,194 +438,210 @@ export default function HomeScreen() {
         visible={isAddModalVisible}
         onRequestClose={closeAddModal}
       >
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="max-h-[85%] rounded-t-[28px] bg-mist px-5 pb-8 pt-5">
-            <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-black text-ink">
-                {modalMode === "edit" ? "Edit Portfolio Item" : "Add Portfolio Item"}
-              </Text>
-              <Pressable accessibilityRole="button" onPress={closeAddModal}>
-                <Text className="text-sm font-bold text-forest-700">Close</Text>
-              </Pressable>
-            </View>
-
-            {!selectedType ? (
-              <View className="gap-2">
-                <Text className="mb-1 text-sm font-bold text-slate-700">
-                  Step 1: Choose investment type
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+        >
+          <View className="flex-1 justify-end bg-transparent">
+            <View
+              className="max-h-[85%] rounded-t-[28px] border border-slate-200 bg-mist px-5 pb-8 pt-5 shadow-2xl shadow-black/25"
+              style={{
+                marginBottom:
+                  Platform.OS === "android" && addModalKeyboardHeight > 0
+                    ? Math.max(12, addModalKeyboardHeight - 24)
+                    : 0,
+              }}
+            >
+              <View className="mb-4 flex-row items-center justify-between">
+                <Text className="text-lg font-black text-ink">
+                  {modalMode === "edit" ? "Edit Portfolio Item" : "Add Portfolio Item"}
                 </Text>
-                {INVESTMENT_TYPE_OPTIONS.map((typeOption) => (
-                  <Pressable
-                    key={typeOption.id}
-                    accessibilityRole="button"
-                    className="rounded-2xl bg-white px-4 py-3"
-                    onPress={() => setSelectedType(typeOption.id)}
-                  >
-                    <Text className="text-sm font-black text-ink">{typeOption.label}</Text>
-                    <Text className="mt-1 text-xs text-slate-500">{typeOption.helperText}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            {selectedType && !selectedAsset ? (
-              <View className="gap-2">
-                <Text className="mb-1 text-sm font-bold text-slate-700">
-                  Step 2: Pick a {selectedType.toUpperCase()} asset
-                </Text>
-                <TextInput
-                  className="rounded-2xl bg-white px-4 py-3 text-sm text-ink"
-                  placeholder={`Search ${selectedType.toUpperCase()} (e.g. AAPL)`}
-                  placeholderTextColor="#94a3b8"
-                  value={assetSearchQuery}
-                  onChangeText={setAssetSearchQuery}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                />
-
-                {isAssetSearchLoading ? (
-                  <View className="flex-row items-center rounded-2xl bg-white px-4 py-3">
-                    <ActivityIndicator color="#1d4ed8" />
-                    <Text className="ml-2 text-xs text-slate-500">Searching assets...</Text>
-                  </View>
-                ) : null}
-
-                {assetSearchError ? (
-                  <Text className="text-xs text-red-600">{assetSearchError}</Text>
-                ) : null}
-
-                {!isAssetSearchLoading && !assetSearchError && assetSearchQuery.trim().length < 2 ? (
-                  <Text className="text-xs text-slate-500">
-                    Type at least 2 characters to search the market.
-                  </Text>
-                ) : null}
-
-                {!isAssetSearchLoading &&
-                !assetSearchError &&
-                assetSearchQuery.trim().length >= 2 &&
-                !assetOptions.length ? (
-                  <Text className="text-xs text-slate-500">No matching assets found.</Text>
-                ) : null}
-
-                {assetOptions.length ? (
-                  <View className="max-h-72">
-                    <ScrollView
-                      keyboardShouldPersistTaps="handled"
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <View className="gap-2 pb-1">
-                        {assetOptions.map((asset) => (
-                          <Pressable
-                            key={asset.id}
-                            accessibilityRole="button"
-                            className="flex-row items-center rounded-2xl bg-white px-4 py-3"
-                            onPress={() => setSelectedAsset(asset)}
-                          >
-                            <AssetIcon
-                              iconUrl={asset.iconUrl}
-                              symbol={asset.symbol}
-                              size={28}
-                              accessibilityLabel={`${asset.name} icon`}
-                            />
-                            <View className="ml-3 flex-1">
-                              <Text className="text-sm font-black text-ink">{asset.symbol}</Text>
-                              <Text className="text-xs text-slate-500">{asset.name}</Text>
-                            </View>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {selectedType && selectedAsset ? (
-              <View className="gap-3">
-                <Text className="mb-1 text-sm font-bold text-slate-700">
-                  Step 3: Enter how much you bought
-                </Text>
-                <View className="rounded-2xl bg-white p-4">
-                  <Text className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Amount
-                  </Text>
-                  <TextInput
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-base text-ink"
-                    keyboardType="decimal-pad"
-                    placeholder="0.00"
-                    placeholderTextColor="#94a3b8"
-                    value={amountInput}
-                    onChangeText={setAmountInput}
-                  />
-
-                  <Text className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Currency
-                  </Text>
-                  <View className="flex-row gap-2">
-                    {(["PHP", "USD"] as const).map((currency) => (
-                      <Pressable
-                        key={currency}
-                        accessibilityRole="button"
-                        className={`rounded-full px-4 py-2 ${
-                          selectedCurrency === currency ? "bg-forest-600" : "bg-forest-50"
-                        }`}
-                        onPress={() => setSelectedCurrency(currency)}
-                      >
-                        <Text
-                          className={`text-sm font-bold ${
-                            selectedCurrency === currency ? "text-white" : "text-forest-700"
-                          }`}
-                        >
-                          {currency}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  {amountError ? (
-                    <Text className="mt-3 text-xs font-medium text-red-600">{amountError}</Text>
-                  ) : null}
-                </View>
-
-                <AppButton
-                  icon="check-circle-outline"
-                  label={
-                    isSavingPortfolio
-                      ? "Saving..."
-                      : modalMode === "edit"
-                        ? "Save changes"
-                        : "Save item"
-                  }
-                  onPress={isSavingPortfolio ? undefined : handleSavePortfolioItem}
-                />
-              </View>
-            ) : null}
-
-            {selectedType ? (
-              <View className="mt-4 flex-row justify-start">
-                <Pressable
-                  accessibilityRole="button"
-                  className="rounded-full bg-forest-50 px-4 py-2"
-                  onPress={() => {
-                    if (selectedAsset) {
-                      setSelectedAsset(null);
-                      setAmountInput("");
-                      setAmountError(null);
-                      return;
-                    }
-
-                    setSelectedType(null);
-                    setAssetSearchQuery("");
-                    setAssetOptions([]);
-                    setAssetSearchError(null);
-                  }}
-                >
-                  <Text className="text-sm font-bold text-forest-700">Back</Text>
+                <Pressable accessibilityRole="button" onPress={closeAddModal}>
+                  <Text className="text-sm font-bold text-forest-700">Close</Text>
                 </Pressable>
               </View>
-            ) : null}
+
+              {!selectedType ? (
+                <View className="gap-2">
+                  <Text className="mb-1 text-sm font-bold text-slate-700">
+                    Step 1: Choose investment type
+                  </Text>
+                  {INVESTMENT_TYPE_OPTIONS.map((typeOption) => (
+                    <Pressable
+                      key={typeOption.id}
+                      accessibilityRole="button"
+                      className="rounded-2xl bg-white px-4 py-3"
+                      onPress={() => setSelectedType(typeOption.id)}
+                    >
+                      <Text className="text-sm font-black text-ink">{typeOption.label}</Text>
+                      <Text className="mt-1 text-xs text-slate-500">{typeOption.helperText}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
+              {selectedType && !selectedAsset ? (
+                <View className="gap-2">
+                  <Text className="mb-1 text-sm font-bold text-slate-700">
+                    Step 2: Pick a {selectedType.toUpperCase()} asset
+                  </Text>
+                  <TextInput
+                    className="rounded-2xl bg-white px-4 py-3 text-sm text-ink"
+                    placeholder={`Search ${selectedType.toUpperCase()} (e.g. AAPL)`}
+                    placeholderTextColor="#94a3b8"
+                    value={assetSearchQuery}
+                    onChangeText={setAssetSearchQuery}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                  />
+
+                  {isAssetSearchLoading ? (
+                    <View className="flex-row items-center rounded-2xl bg-white px-4 py-3">
+                      <ActivityIndicator color="#1d4ed8" />
+                      <Text className="ml-2 text-xs text-slate-500">Searching assets...</Text>
+                    </View>
+                  ) : null}
+
+                  {assetSearchError ? (
+                    <Text className="text-xs text-red-600">{assetSearchError}</Text>
+                  ) : null}
+
+                  {!isAssetSearchLoading &&
+                  !assetSearchError &&
+                  assetSearchQuery.trim().length < 2 ? (
+                    <Text className="text-xs text-slate-500">
+                      Type at least 2 characters to search the market.
+                    </Text>
+                  ) : null}
+
+                  {!isAssetSearchLoading &&
+                  !assetSearchError &&
+                  assetSearchQuery.trim().length >= 2 &&
+                  !assetOptions.length ? (
+                    <Text className="text-xs text-slate-500">No matching assets found.</Text>
+                  ) : null}
+
+                  {assetOptions.length ? (
+                    <View className="max-h-72">
+                      <ScrollView
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}
+                      >
+                        <View className="gap-2 pb-1">
+                          {assetOptions.map((asset) => (
+                            <Pressable
+                              key={asset.id}
+                              accessibilityRole="button"
+                              className="flex-row items-center rounded-2xl bg-white px-4 py-3"
+                              onPress={() => setSelectedAsset(asset)}
+                            >
+                              <AssetIcon
+                                iconUrl={asset.iconUrl}
+                                symbol={asset.symbol}
+                                size={28}
+                                accessibilityLabel={`${asset.name} icon`}
+                              />
+                              <View className="ml-3 flex-1">
+                                <Text className="text-sm font-black text-ink">{asset.symbol}</Text>
+                                <Text className="text-xs text-slate-500">{asset.name}</Text>
+                              </View>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {selectedType && selectedAsset ? (
+                <View className="gap-3">
+                  <Text className="mb-1 text-sm font-bold text-slate-700">
+                    Step 3: Enter how much you bought
+                  </Text>
+                  <View className="rounded-2xl bg-white p-4">
+                    <Text className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      Amount
+                    </Text>
+                    <TextInput
+                      className="rounded-xl border border-slate-200 px-3 py-2 text-base text-ink"
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor="#94a3b8"
+                      value={amountInput}
+                      onChangeText={setAmountInput}
+                    />
+
+                    <Text className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      Currency
+                    </Text>
+                    <View className="flex-row gap-2">
+                      {(["PHP", "USD"] as const).map((currency) => (
+                        <Pressable
+                          key={currency}
+                          accessibilityRole="button"
+                          className={`rounded-full px-4 py-2 ${
+                            selectedCurrency === currency ? "bg-forest-600" : "bg-forest-50"
+                          }`}
+                          onPress={() => setSelectedCurrency(currency)}
+                        >
+                          <Text
+                            className={`text-sm font-bold ${
+                              selectedCurrency === currency ? "text-white" : "text-forest-700"
+                            }`}
+                          >
+                            {currency}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {amountError ? (
+                      <Text className="mt-3 text-xs font-medium text-red-600">{amountError}</Text>
+                    ) : null}
+                  </View>
+
+                  <AppButton
+                    icon="check-circle-outline"
+                    label={
+                      isSavingPortfolio
+                        ? "Saving..."
+                        : modalMode === "edit"
+                          ? "Save changes"
+                          : "Save item"
+                    }
+                    onPress={isSavingPortfolio ? undefined : handleSavePortfolioItem}
+                  />
+                </View>
+              ) : null}
+
+              {selectedType ? (
+                <View className="mt-4 flex-row justify-start">
+                  <Pressable
+                    accessibilityRole="button"
+                    className="rounded-full bg-forest-50 px-4 py-2"
+                    onPress={() => {
+                      if (selectedAsset) {
+                        setSelectedAsset(null);
+                        setAmountInput("");
+                        setAmountError(null);
+                        return;
+                      }
+
+                      setSelectedType(null);
+                      setAssetSearchQuery("");
+                      setAssetOptions([]);
+                      setAssetSearchError(null);
+                    }}
+                  >
+                    <Text className="text-sm font-bold text-forest-700">Back</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal

@@ -1,55 +1,12 @@
-import { Image } from 'expo-image';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Image } from "expo-image";
+import { Linking, Pressable, Text, View } from "react-native";
 
-import { AppCard } from '@/components/common/AppCard';
-import { Screen } from '@/components/common/Screen';
-import { ScreenHeader } from '@/components/common/ScreenHeader';
+import { AppCard } from "@/components/common/AppCard";
+import { Screen } from "@/components/common/Screen";
+import { ScreenHeader } from "@/components/common/ScreenHeader";
+import { getTrustedCreators } from "@/services/content/trustedCreatorsService";
 
-type TrustedCreator = {
-  id: string;
-  name: string;
-  profileUrl: string;
-  description: string;
-  profileImage: number;
-};
-
-const TRUSTED_CREATORS: TrustedCreator[] = [
-  {
-    id: 'tonichi-bonoan',
-    name: 'Tonichi Bonoan',
-    profileUrl: 'https://www.facebook.com/tonichi.bonoan',
-    description: 'Personal finance and investing education for Filipino beginners.',
-    profileImage: require('@/assets/creators/tonichi.jpg'),
-  },
-  {
-    id: 'truly-rich-club',
-    name: 'Truly Rich Club',
-    profileUrl: 'https://www.facebook.com/officialtrulyrichclub',
-    description: 'Long-term wealth building and values-based investing content.',
-    profileImage: require('@/assets/creators/truly-rich-club.jpg'),
-  },
-  {
-    id: 'juan-for-the-money',
-    name: 'Juan For The Money',
-    profileUrl: 'https://www.facebook.com/juanforthemoney',
-    description: 'Taglish-friendly explainers on stocks, ETFs, and money habits.',
-    profileImage: require('@/assets/creators/juan-for-the-money.jpg'),
-  },
-  {
-    id: 'jacques-jax-reyes',
-    name: 'Jacques Jax Reyes',
-    profileUrl: 'https://www.facebook.com/jacquesjax.reyes',
-    description: 'Beginner-focused market education and practical learning content.',
-    profileImage: require('@/assets/creators/jac-reyes.jpg'),
-  },
-  {
-    id: 'jem-and-jec',
-    name: 'Jem and Jec',
-    profileUrl: 'https://www.facebook.com/JemAndJec',
-    description: 'Educational videos on investing mindset and financial literacy.',
-    profileImage: require('@/assets/creators/jem-and-jec.jpg'),
-  },
-];
+const TRUSTED_CREATORS = getTrustedCreators();
 
 export default function LearnScreen() {
   async function openProfile(url: string) {
@@ -73,7 +30,8 @@ export default function LearnScreen() {
             <Pressable
               accessibilityRole="button"
               className="flex-row items-center"
-              onPress={() => openProfile(creator.profileUrl)}>
+              onPress={() => openProfile(creator.profileUrl)}
+            >
               <View className="h-[52px] w-[52px] overflow-hidden rounded-full">
                 <Image
                   source={creator.profileImage}
@@ -85,9 +43,15 @@ export default function LearnScreen() {
               <View className="ml-3 flex-1">
                 <Text className="text-base font-black text-ink">{creator.name}</Text>
                 <Text className="mt-1 text-xs leading-5 text-slate-600">{creator.description}</Text>
-                <View className="mt-3 flex-row items-center justify-between">
-                  <Text className="text-xs font-bold text-forest-700">Open profile</Text>
-                  <Text className="text-xs font-bold text-slate-400">Facebook</Text>
+                <View className="mt-3 flex-row items-center">
+                  <View className="rounded-full bg-forest-50 px-3 py-1.5">
+                    <Text className="text-xs font-bold text-forest-700" numberOfLines={1}>
+                      Open profile
+                    </Text>
+                  </View>
+                  <Text className="ml-auto shrink-0 text-xs font-bold text-right text-slate-400">
+                    Facebook
+                  </Text>
                 </View>
               </View>
             </Pressable>

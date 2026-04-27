@@ -1,19 +1,19 @@
-import { Directory, File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from "expo-file-system";
 
-import type { LocalModelInfo, LocalModelState } from '@/types/ai';
+import type { LocalModelInfo, LocalModelState } from "@/types/ai";
 
 const MODEL_INFO: LocalModelInfo = {
-  modelId: 'TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF',
-  fileName: 'tinyllama-1.1b-chat-v1.0.Q2_K.gguf',
+  modelId: "bartowski/Qwen2.5-1.5B-Instruct-GGUF",
+  fileName: "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
   downloadUrl:
-    'https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q2_K.gguf?download=true',
-  sizeMb: 240,
-  minAppVersion: '1.0.0',
+    "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf?download=true",
+  sizeMb: 1000,
+  minAppVersion: "1.0.0",
 };
 const MIN_READY_FILE_BYTES = Math.floor(MODEL_INFO.sizeMb * 1024 * 1024 * 0.8);
 
 const DEFAULT_STATE: LocalModelState = {
-  status: 'not_downloaded',
+  status: "not_downloaded",
   model: MODEL_INFO,
   progress: 0,
 };
@@ -25,6 +25,8 @@ const listeners = new Set<LocalModelListener>();
 let isDownloadInProgress = false;
 let expectedDownloadBytes: number | null = null;
 let progressIntervalId: ReturnType<typeof setInterval> | null = null;
+let lastReadyRefreshAt = 0;
+const READY_STATE_REFRESH_CACHE_MS = 15000;
 
 function emitState(nextState: LocalModelState) {
   localModelState = nextState;
@@ -34,7 +36,7 @@ function emitState(nextState: LocalModelState) {
 }
 
 function getModelDirectory(): Directory {
-  return new Directory(Paths.document, 'models');
+  return new Directory(Paths.document, "models");
 }
 
 function getModelFile(): File {
@@ -61,13 +63,13 @@ async function ensureModelDirectory() {
 
 function mapDownloadErrorToMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
-    if (error.message.includes('status: 401')) {
-      return 'Model download blocked (401). The file may require Hugging Face auth/token or gated access.';
+    if (error.message.includes("status: 401")) {
+      return "Model download blocked (401). The file may require Hugging Face auth/token or gated access.";
     }
     return error.message;
   }
 
-  return 'Model download failed.';
+  return "Model download failed.";
 }
 
 function getDownloadHeaders(): Record<string, string> {
@@ -96,6 +98,14 @@ export function subscribeToLocalModelState(listener: LocalModelListener): () => 
 }
 
 export async function refreshLocalModelState(): Promise<LocalModelState> {
+  if (
+    localModelState.status === "ready" &&
+    !isDownloadInProgress &&
+    Date.now() - lastReadyRefreshAt < READY_STATE_REFRESH_CACHE_MS
+  ) {
+    return localModelState;
+  }
+
   try {
     const modelFile = getModelFile();
     const fileInfo = modelFile.info();
@@ -103,7 +113,7 @@ export async function refreshLocalModelState(): Promise<LocalModelState> {
     if (!fileInfo.exists) {
       emitState({
         ...localModelState,
-        status: 'not_downloaded',
+        status: "not_downloaded",
         localUri: undefined,
         progress: 0,
         errorMessage: undefined,
@@ -115,10 +125,10 @@ export async function refreshLocalModelState(): Promise<LocalModelState> {
     if ((fileInfo.size ?? 0) < MIN_READY_FILE_BYTES) {
       emitState({
         ...localModelState,
-        status: 'unavailable',
+        status: "unavailable",
         localUri: undefined,
         progress: 0,
-        errorMessage: 'Model file looks incomplete. Please clear and download again.',
+        errorMessage: "Model file looks incomplete. Please clear and download again.",
       });
 
       return localModelState;
@@ -130,10 +140,10 @@ export async function refreshLocalModelState(): Promise<LocalModelState> {
       if (fileInfoWithMd5.md5 !== MODEL_INFO.expectedMd5) {
         emitState({
           ...localModelState,
-          status: 'unavailable',
+          status: "unavailable",
           localUri: undefined,
           progress: 0,
-          errorMessage: 'Model checksum mismatch. Redownload required.',
+          errorMessage: "Model checksum mismatch. Redownload required.",
         });
 
         return localModelState;
@@ -142,15 +152,16 @@ export async function refreshLocalModelState(): Promise<LocalModelState> {
 
     emitState({
       ...localModelState,
-      status: 'ready',
+      status: "ready",
       localUri: modelFile.uri,
       progress: 1,
       errorMessage: undefined,
     });
+    lastReadyRefreshAt = Date.now();
   } catch (error) {
     emitState({
       ...localModelState,
-      status: 'unavailable',
+      status: "unavailable",
       localUri: undefined,
       progress: 0,
       errorMessage: mapDownloadErrorToMessage(error),
@@ -163,7 +174,7 @@ export async function refreshLocalModelState(): Promise<LocalModelState> {
 async function resolveExpectedDownloadBytes(): Promise<number | null> {
   try {
     const response = await fetch(MODEL_INFO.downloadUrl, {
-      method: 'HEAD',
+      method: "HEAD",
       headers: getDownloadHeaders(),
     });
 
@@ -171,7 +182,7 @@ async function resolveExpectedDownloadBytes(): Promise<number | null> {
       return null;
     }
 
-    const contentLengthHeader = response.headers.get('content-length');
+    const contentLengthHeader = response.headers.get("content-length");
 
     if (!contentLengthHeader) {
       return null;
@@ -196,19 +207,19 @@ function startProgressPolling() {
     try {
       const modelFile = getModelFile();
       const info = modelFile.info();
-      const downloadedBytes = info.exists ? info.size ?? 0 : 0;
+      const downloadedBytes = info.exists ? (info.size ?? 0) : 0;
 
       if (expectedDownloadBytes && expectedDownloadBytes > 0) {
         const computedProgress = Math.min(downloadedBytes / expectedDownloadBytes, 0.99);
         emitState({
           ...localModelState,
-          status: 'downloading',
+          status: "downloading",
           progress: computedProgress,
         });
       } else {
         emitState({
           ...localModelState,
-          status: 'downloading',
+          status: "downloading",
           progress: downloadedBytes > 0 ? 0.5 : 0.01,
         });
       }
@@ -221,7 +232,7 @@ function startProgressPolling() {
 export async function startLocalModelDownload(): Promise<void> {
   await ensureModelDirectory();
 
-  if (localModelState.status === 'downloading' || isDownloadInProgress) {
+  if (localModelState.status === "downloading" || isDownloadInProgress) {
     return;
   }
 
@@ -231,12 +242,13 @@ export async function startLocalModelDownload(): Promise<void> {
   }
   emitState({
     ...localModelState,
-    status: 'downloading',
+    status: "downloading",
     localUri: undefined,
     progress: 0.01,
     errorMessage: undefined,
   });
   isDownloadInProgress = true;
+  lastReadyRefreshAt = 0;
   expectedDownloadBytes = await resolveExpectedDownloadBytes();
   startProgressPolling();
 
@@ -249,7 +261,7 @@ export async function startLocalModelDownload(): Promise<void> {
   } catch (error) {
     emitState({
       ...localModelState,
-      status: 'unavailable',
+      status: "unavailable",
       progress: 0,
       localUri: undefined,
       errorMessage: mapDownloadErrorToMessage(error),
@@ -266,6 +278,7 @@ export async function clearLocalModel(): Promise<void> {
     clearProgressInterval();
     isDownloadInProgress = false;
     expectedDownloadBytes = null;
+    lastReadyRefreshAt = 0;
 
     const modelFile = getModelFile();
     if (modelFile.exists) {
@@ -274,7 +287,7 @@ export async function clearLocalModel(): Promise<void> {
 
     emitState({
       ...localModelState,
-      status: 'not_downloaded',
+      status: "not_downloaded",
       localUri: undefined,
       progress: 0,
       errorMessage: undefined,
@@ -282,7 +295,7 @@ export async function clearLocalModel(): Promise<void> {
   } catch (error) {
     emitState({
       ...localModelState,
-      status: 'unavailable',
+      status: "unavailable",
       localUri: undefined,
       progress: 0,
       errorMessage: mapDownloadErrorToMessage(error),
